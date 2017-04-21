@@ -1,0 +1,29 @@
+#ifndef GAMECONFIG_HPP
+#define GAMECONFIG_HPP
+
+#define TILESETSOURCE "../Assets/hexapointy.png"
+#define TILESETSIZEX 60
+#define TILESETSIZEY 80
+#define TILESETCOUNT 4
+#define TILESETCOLUMNS 4
+
+#define WINSIZEX 800
+#define WINSIZEY 600
+#define WINTITLE "LD38"
+
+#define MAPSIZEX 30
+#define MAPSIZEY 30
+#define MAPTILESIZEX 60
+#define MAPTILESIZEY 52
+#define MAPHEXSIDE 28
+
+#define TID_NONE 1
+#define TID_GRASS 2
+#define TID_WATER 3
+#define TID_CITY 4
+
+#define VIEWSPEED 200
+
+#define PATHMAXSTEP 30
+
+#endif // GAMECONFIG_HPP
