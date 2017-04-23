@@ -11,6 +11,8 @@
 #include "../System/ResourceHolder.hpp"
 #include "../System/SFMLResources.hpp"
 
+#include "Systems/AudioSystem.hpp"
+
 #include "../ExtLibs/imgui/imgui.h"
 #include "../ExtLibs/imgui/imgui-SFML.h"
 
@@ -36,6 +38,7 @@ class Application
 
 		TextureHolder& getTextures();
 		FontHolder& getFonts();
+		AudioSystem& getAudio();
 
 		const U32& getFPSCount() const;
 		const U32& getUPSCount() const;
@@ -54,6 +57,7 @@ class Application
 		Localization mLocalization;
 		TextureHolder mTextures;
 		FontHolder mFonts;
+		AudioSystem mAudioSystem;
 		U32 mFPSCounter;
 		U32 mUPSCounter;
 		bool mRunning;

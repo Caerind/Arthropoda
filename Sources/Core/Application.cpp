@@ -10,6 +10,9 @@ Application::Application()
 	, mWindow()
 	, mStates(*this)
 	, mLocalization()
+	, mTextures()
+	, mFonts()
+	, mAudioSystem()
 	, mFPSCounter(0)
 	, mUPSCounter(0)
 	, mRunning(true)
@@ -49,7 +52,7 @@ void Application::run()
 	{
 		Time dt = clock.restart();
 		timeSinceLastUpdate += dt;
-		while (timeSinceLastUpdate >= timePerFrame)
+		if (timeSinceLastUpdate >= timePerFrame)
 		{
 			timeSinceLastUpdate -= timePerFrame;
 
@@ -108,6 +111,11 @@ FontHolder& Application::getFonts()
 	return mFonts;
 }
 
+AudioSystem& Application::getAudio()
+{
+	return mAudioSystem;
+}
+
 const U32& Application::getFPSCount() const
 {
 	return mFPSCounter;
@@ -134,6 +142,10 @@ void Application::processEvents()
 
 void Application::update(Time dt)
 {
+
+	// Update state of musics and sounds
+	mAudioSystem.update();
+
 	if (!mStates.update(dt))
 	{
 		stop();

@@ -9,7 +9,6 @@
 
 #include "Systems/RenderSystem.hpp"
 #include "Systems/AudioSystem.hpp"
-#include "Systems/ActionSystem.hpp"
 #include "Systems/TimeSystem.hpp"
 
 #include "../System/ResourceHolder.hpp"
@@ -29,7 +28,6 @@ class World
 
 		Application& getApplication();
 
-		void handleEvent(const sf::Event& event);
 		void update(Time dt);
 		void update();
 		void render(sf::RenderTarget& target);
@@ -44,8 +42,6 @@ class World
 		U32 getEntitiesPlaying() const; // Playing only
 
 		RenderSystem& getRenderSystem();
-		AudioSystem& getAudioSystem();
-		ActionSystem& getActionSystem();
 		TimeSystem& getTimeSystem();
 
 		TextureHolder& getTextures();
@@ -85,12 +81,7 @@ class World
 		Time mUpdateTime;
 
 		RenderSystem mRenderSystem;
-		AudioSystem mAudioSystem;
-		ActionSystem mActionSystem;
 		TimeSystem mTimeSystem;
-
-		TextureHolder mTextures;
-		FontHolder mFonts;
 };
 
 template <typename T>

@@ -1,7 +1,5 @@
 #include "File.hpp"
 
-#include "../ExtLibs/dirent/dirent.h"
-
 namespace oe
 {
 
@@ -18,6 +16,7 @@ std::string Path::getDirectoryName(std::string path)
 
 std::vector<std::string> Path::getDirectoryList(std::string path)
 {
+	/*
 	std::vector<std::string> ret;
 	unify(path);
 	DIR* dir = opendir(path.c_str());
@@ -30,6 +29,8 @@ std::vector<std::string> Path::getDirectoryList(std::string path)
 		}
 	}
 	return ret;
+	*/
+	return std::vector<std::string>();
 }
 
 bool Path::isFile(const std::string& path)

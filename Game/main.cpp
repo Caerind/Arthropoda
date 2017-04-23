@@ -12,6 +12,7 @@ int main()
 
 	// Load Resources
 	GameSingleton::loadTileset();
+	GameSingleton::sansationFont = application.getFonts().create("sansation", "../Assets/sansation.ttf");
 
 	// Load Window
 	oe::Window& window = application.getWindow();

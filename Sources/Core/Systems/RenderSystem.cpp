@@ -8,6 +8,7 @@ namespace oe
 RenderSystem::RenderSystem()
 	: mTexture()
 	, mRenderables()
+	, mBackgroundColor(Color::Black)
 	, mNeedUpdateOrderZ(true)
 	, mNeedUpdateOrderY(true)
 {
@@ -75,6 +76,11 @@ void RenderSystem::render(sf::RenderTarget& target)
 	postRender(target);
 }
 
+void RenderSystem::setBackgroundColor(const Color& color)
+{
+	mBackgroundColor = color;
+}
+
 void RenderSystem::needUpdateOrderZ()
 {
 	mNeedUpdateOrderZ = true;
@@ -126,7 +132,7 @@ void RenderSystem::preRender()
 
 void RenderSystem::render()
 {
-	mTexture.clear();
+	mTexture.clear(toSF(mBackgroundColor));
 	mTexture.setView(mView.getHandle());
 	for (RenderableComponent* renderable : mRenderables)
 	{

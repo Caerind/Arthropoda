@@ -19,15 +19,14 @@ class Node
 		bool visited;
 };
 
-template<typename T>
-class Matrix
+class CollisionMatrix
 {
     public:
-        Matrix() {}
-        Matrix(I32 x, I32 y, T val) { create(x, y, val); }
-		~Matrix() { clear(); }
+		CollisionMatrix() {}
+		CollisionMatrix(I32 x, I32 y) { create(x, y); }
+		~CollisionMatrix() { clear(); }
 
-        void create(I32 x, I32 y, T val)
+        void create(I32 x, I32 y)
 		{
 			clear();
 			mSize.set(x, y);
@@ -35,18 +34,26 @@ class Matrix
 			{
 				for (I32 j = 0; j < y; j++)
 				{
-					mMap[std::pair<I32,I32>(i, j)] = val;
+					mMap[std::pair<I32,I32>(i, j)] = false;
 				}
 			}
 		}
 
 		void clear() { mMap.clear(); }
 
-        T& get(I32 x, I32 y) { return mMap.find(std::pair<I32,I32>(x, y))->second; }
-		T& get(const oe::Vector2i& coords) { return get(coords.x, coords.y); }
+        bool get(I32 x, I32 y) 
+		{ 
+			auto itr = mMap.find(std::pair<I32, I32>(x, y));
+			if (itr != mMap.end())
+			{
+				return itr->second;
+			}
+			return true;
+		}
+		bool get(const oe::Vector2i& coords) { return get(coords.x, coords.y); }
 
-        void set(I32 x, I32 y, const T& val) { mMap[std::pair<I32,I32>(x, y)] = val; }
-		void set(const oe::Vector2i& coords, const T& val) { set(coords.x, coords.y, val); }
+        void set(I32 x, I32 y, const bool& val) { mMap[std::pair<I32,I32>(x, y)] = val; }
+		void set(const oe::Vector2i& coords, const bool& val) { set(coords.x, coords.y, val); }
 
 		const oe::Vector2i& getSize() const { return mSize; }
 		void setSize(const oe::Vector2i& size)
@@ -56,7 +63,7 @@ class Matrix
 		}
 
     private:
-        std::map<std::pair<I32,I32>,T> mMap;
+        std::map<std::pair<I32,I32>,bool> mMap;
 		oe::Vector2i mSize;
 };
 
@@ -92,9 +99,14 @@ class NodeMatrix
 class AStar
 {
 	public:
-		static void run(std::list<oe::Vector2i>& path, const oe::Vector2i& start, const oe::Vector2i& end, Matrix<I32>& map)
+		static bool run(std::list<oe::Vector2i>& path, const oe::Vector2i& start, const oe::Vector2i& end, CollisionMatrix& map)
 		{
 			path.clear();
+
+			if (start == end || start.x < 0 || start.y < 0)
+			{
+				return false;
+			}
 
 			oe::Vector2i size(map.getSize());
 
@@ -106,14 +118,14 @@ class AStar
 			{
 				for (I32 j = 0; j < size.y; j++)
 				{
-					closeList.set(i, j, new Node(map.get(i, j), 0));
+					closeList.set(i, j, new Node((map.get(i, j)) ? 1 : 0, 0));
 				}
 			}
 
 			//VERIF
-			if (start == end || isWall(start, closeList) || isWall(end, closeList))
+			if (isWall(end, closeList))
 			{
-				return;
+				return false;
 			}
 
 			// FIRST NODE
@@ -140,7 +152,7 @@ class AStar
 						}
                         nend = nend->parent;
                     }
-					return;
+					return true;
 				}
 
 				// If the end wasn't reached
@@ -171,17 +183,17 @@ class AStar
 					}
 				}
 			}
-			return;
+			return false;
 		}
 
-    private:
-        static I32 heuristic(const oe::Vector2i& p1, const oe::Vector2i& p2) // Distance as the crow flies between too points
+		static I32 heuristic(const oe::Vector2i& p1, const oe::Vector2i& p2) // Distance as the crow flies between too points
 		{
 			I32 a(p1.x - p2.x);
 			I32 b(p1.y - p2.y);
 			return (I32)std::sqrt(a * a + b * b);
 		}
 
+	private:
 		static bool isInOpenList(const Node* n, std::list<Node*>& openList) // Check if the node is in the openlist
 		{
 			std::list<Node*>::iterator end(openList.end());
@@ -226,11 +238,11 @@ class AStar
 class Distance
 {
     public:
-		static void run(std::vector<oe::Vector2i>& reachables, const oe::Vector2i& start, U32 length, Matrix<I32>& map)
+		static void run(std::vector<oe::Vector2i>& reachables, const oe::Vector2i& start, U32 length, CollisionMatrix& map)
 		{
 			reachables.clear();
 
-			if (length == 0 || map.get(start) == 1)
+			if (length == 0)
 			{
 				return;
 			}

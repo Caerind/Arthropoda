@@ -32,6 +32,8 @@ class RenderSystem
 		void update(Time dt);
 		void render(sf::RenderTarget& target);
 
+		void setBackgroundColor(const Color& color);
+
 		void needUpdateOrderZ();
 		void needUpdateOrderY();
 
@@ -55,6 +57,8 @@ class RenderSystem
 		DebugDraw mDebugDraw;
 
 		View mView;
+
+		Color mBackgroundColor;
 
 		bool mNeedUpdateOrderZ;
 		bool mNeedUpdateOrderY;

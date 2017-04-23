@@ -38,11 +38,6 @@ Application& World::getApplication()
 	return mApplication;
 }
 
-void World::handleEvent(const sf::Event& event)
-{
-	mActionSystem.addEvent(event);
-}
-
 void World::update(Time dt)
 {
 	update();
@@ -51,12 +46,6 @@ void World::update(Time dt)
 	{
 		// Apply speed factor
 		mUpdateTime = dt * mTimeSystem.getSpeedFactor();
-
-		// Update state of musics and sounds
-		mAudioSystem.update();
-
-		// Update input from the user
-		mActionSystem.update();
 
 		// Update timer
 		mTimeSystem.update(mUpdateTime);
@@ -143,16 +132,6 @@ RenderSystem& World::getRenderSystem()
 	return mRenderSystem;
 }
 
-AudioSystem& World::getAudioSystem()
-{
-	return mAudioSystem;
-}
-
-ActionSystem& World::getActionSystem()
-{
-	return mActionSystem;
-}
-
 TimeSystem& World::getTimeSystem()
 {
 	return mTimeSystem;
@@ -160,12 +139,12 @@ TimeSystem& World::getTimeSystem()
 
 TextureHolder& World::getTextures()
 {
-	return mTextures;
+	return getApplication().getTextures();
 }
 
 FontHolder& World::getFonts()
 {
-	return mFonts;
+	return getApplication().getFonts();
 }
 
 void World::play()
