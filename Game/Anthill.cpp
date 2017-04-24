@@ -9,13 +9,23 @@ Anthill::Anthill(oe::World& world)
 {
 	// Sprite
 	mSprite.setTexture(GameSingleton::objectsTexture);
-	mSprite.setTextureRect(sf::IntRect(0, 0, 98, 70));
-	mSprite.setPosition(-20.f, -20.f);
+	mSprite.setTextureRect(sf::IntRect(0, 0, 98, 81));
+	mSprite.setPosition(-20.f, -10.f);
+
+	mResourceComponent.setResourcesMax(999);
+	mResourceComponent.move(10.f, 0.f);
 
 	// MapEntity
+	mLifeComponent.setLifeMax(GSTARTLIFE);
 	setPlayer(0);
 	setLife(GSTARTLIFE);
 	setResources(GSTARTR);
+
+	setPositionZ(0.f);
+	mSprite.setPositionZ(-10.f);
+	mLifeComponent.setPositionZ(10.f);
+
+	mLifeComponent.move(5.f, 10.f);
 }
 
 void Anthill::getNeighbors(std::vector<oe::Vector2i>& n)
@@ -56,7 +66,14 @@ bool Anthill::spawn(Ant::Type antType)
 			a->setPlayer(getPlayer());
 			a->setType(antType);
 			GameSingleton::setCollision(coords, true);
-			GameSingleton::ants.insert(ant);
+			if (getPlayer() == 1)
+			{
+				GameSingleton::ants.insert(ant);
+			}
+			else
+			{
+				GameSingleton::aiAnts.insert(ant);
+			}
 			takeResources(Ant::getPrice(antType));
 			return true;
 		}

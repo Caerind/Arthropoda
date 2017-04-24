@@ -29,6 +29,8 @@ Application::~Application()
 		mWindow.close();
 	}
 
+	getAudio().stop();
+
 	//ImGui::SFML::Shutdown();
 
 	#ifdef OE_PLATFORM_ANDROID
@@ -54,7 +56,7 @@ void Application::run()
 		timeSinceLastUpdate += dt;
 		if (timeSinceLastUpdate >= timePerFrame)
 		{
-			timeSinceLastUpdate -= timePerFrame;
+			timeSinceLastUpdate = oe::Time::Zero;
 
 			// Handle event
 			processEvents();
@@ -89,6 +91,7 @@ void Application::run()
 void Application::stop()
 {
 	mRunning = false;
+	getAudio().stop();
 }
 
 void Application::popState()
@@ -134,7 +137,7 @@ void Application::processEvents()
 	{
 		cont = mStates.handleEvent(event);
 	}
-	if (!cont)
+	if (!cont || !mWindow.isOpen())
 	{
 		stop();
 	}

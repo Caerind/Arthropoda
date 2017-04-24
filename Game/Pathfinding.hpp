@@ -262,7 +262,47 @@ class Distance
 					oe::MapUtility::getNeighboors(neighbors, check, oe::MapUtility::Orientation::Hexagonal);
 					for (const oe::Vector2i& neighbor : neighbors)
 					{
-						if (map.get(neighbor) != 1 && !has(neighbor, reachables)) // isnt a wall
+						if (!has(neighbor, reachables) && map.get(neighbor) != 1) // isnt a wall
+						{
+							reachables.emplace_back(neighbor);
+							futurChecks.emplace_back(neighbor);
+						}
+					}
+				}
+				checks.clear();
+				for (const oe::Vector2i& check : futurChecks)
+				{
+					checks.emplace_back(check);
+				}
+				futurChecks.clear();
+			}
+		}
+
+		static void run(std::vector<oe::Vector2i>& reachables, const oe::Vector2i& start, U32 length, I32 mapSizeX, I32 mapSizeY)
+		{
+			reachables.clear();
+
+			if (length == 0)
+			{
+				return;
+			}
+
+			std::vector<oe::Vector2i> neighbors;
+			std::vector<oe::Vector2i> checks;
+			std::vector<oe::Vector2i> futurChecks;
+
+			reachables.push_back(start);
+			checks.push_back(start);
+
+			for (U32 i = 0; i < length; i++)
+			{
+				for (const oe::Vector2i& check : checks)
+				{
+					neighbors.clear();
+					oe::MapUtility::getNeighboors(neighbors, check, oe::MapUtility::Orientation::Hexagonal);
+					for (const oe::Vector2i& neighbor : neighbors)
+					{
+						if (neighbor.x < mapSizeX && neighbor.y < mapSizeY && !has(neighbor, reachables))
 						{
 							reachables.emplace_back(neighbor);
 							futurChecks.emplace_back(neighbor);

@@ -21,6 +21,15 @@ class GameSingleton
 		// Fonts
 		static oe::ResourceId sansationFont;
 
+		// Sounds
+		static oe::ResourceId movementSound;
+		static oe::ResourceId actionSound;
+		static oe::ResourceId attackSound;
+
+		// Resources
+		static oe::ResourceId antTexture;
+		static oe::ResourceId objectsTexture;
+
 		// Map
 		static GameMap* map;
 
@@ -31,10 +40,6 @@ class GameSingleton
 		static bool isCollision(const oe::Vector2i& coords);
 		static void setCollision(I32 x, I32 y, bool value);
 		static bool isCollision(I32 x, I32 y);
-
-		// Resources
-		static oe::ResourceId antTexture;
-		static oe::ResourceId objectsTexture;
 
 		// Game Resources
 		static oe::EntityList resources;
@@ -50,6 +55,7 @@ class GameSingleton
 		static Ant* getAnt(U32 index);
 		static Ant* getAnt(I32 x, I32 y);
 		static Ant* getAnt(const oe::Vector2i& coords);
+		static oe::EntityHandle getAntHandle(const oe::Vector2i& coords);
 
 		// Player 2 : AI
 		static oe::EntityHandle aiAnthill;
@@ -58,9 +64,14 @@ class GameSingleton
 		static Ant* getAIAnt(U32 index);
 		static Ant* getAIAnt(I32 x, I32 y);
 		static Ant* getAIAnt(const oe::Vector2i& coords);
+		static oe::EntityHandle getAIAntHandle(const oe::Vector2i& coords);
 
 		// Update all lists
 		static void update();
+		// Clear the singleton before a new game
+		static void clear();
+
+		static bool win;
 };
 
 #endif // GAMESINGLETON_HPP

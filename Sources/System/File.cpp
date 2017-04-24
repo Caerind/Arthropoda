@@ -16,20 +16,6 @@ std::string Path::getDirectoryName(std::string path)
 
 std::vector<std::string> Path::getDirectoryList(std::string path)
 {
-	/*
-	std::vector<std::string> ret;
-	unify(path);
-	DIR* dir = opendir(path.c_str());
-	if (dir != nullptr)
-	{
-		dirent* file = nullptr;
-		while ((file = readdir(dir)) != nullptr)
-		{
-			ret.push_back(file->d_name);
-		}
-	}
-	return ret;
-	*/
 	return std::vector<std::string>();
 }
 

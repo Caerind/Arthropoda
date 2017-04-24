@@ -10,7 +10,6 @@ GameMap::GameMap(oe::World& world)
 	, mCursor(*this)
 	, mOverlayClean(true)
 {
-	setPositionZ(-100.f);
 	setTileset(&GameSingleton::tileset);
 	setOrientation(oe::MapUtility::Hexagonal);
 	setSize(oe::Vector2i(MAPSIZEX, MAPSIZEY));
@@ -25,7 +24,8 @@ GameMap::GameMap(oe::World& world)
 
 	mLayer.create(getTileset(), getSize(), getTileSize(), getOrientation(), getStaggerAxis(), getStaggerIndex(), getHexSideLength());
 	mOverlay.create(getTileset(), getSize(), getTileSize(), getOrientation(), getStaggerAxis(), getStaggerIndex(), getHexSideLength());
-	
+
+	setPositionZ(-100.f);
 	mLayer.setPositionZ(0.f); 
 	mOverlay.setPositionZ(10.f);
 	mCursor.setPositionZ(20.f);
@@ -62,9 +62,20 @@ void GameMap::setCursorRect(const sf::IntRect& rect)
 	mCursor.setTextureRect(rect);
 }
 
-void GameMap::setCursorCoords(const oe::Vector2i& coords)
+void GameMap::setCursorCoords(const oe::Vector2i& coords, U32 currentPlayer)
 {
-	mCursor.setPosition(coordsToWorld(coords) + oe::Vector2(0.f, -28.f));
+	mCursor.setPosition(coordsToWorld(coords));
+	mCursor.setTextureRect(sf::IntRect(420, 0, 60, 80)); // Default color
+	Ant* enemyAnt = (currentPlayer == 1) ? GameSingleton::getAIAnt(coords) : GameSingleton::getAnt(coords);
+	Anthill& enemyAnthill = (currentPlayer == 1) ? GameSingleton::getAIAnthill() : GameSingleton::getAnthill();
+	if (enemyAnt != nullptr || coords == enemyAnthill.getCoords())
+	{
+		mCursor.setTextureRect(sf::IntRect(540, 0, 60, 80)); // Color enemy
+	}
+	else if (GameSingleton::isCollision(coords))
+	{
+		mCursor.setTextureRect(sf::IntRect(0, 0, 0, 0));
+	}
 }
 
 void GameMap::validOverlay()

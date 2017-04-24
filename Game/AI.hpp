@@ -13,10 +13,10 @@ class AI
 
 		void startTurn();
 		void think(oe::Time dt);
-		void endTurn();
 
 		bool isTurnOver() const;
-		bool isDead() const;
+
+		void addResource(const oe::Vector2i& coords);
 
 	private:
 		void tryBuy();
@@ -28,7 +28,7 @@ class AI
 		void playWorker(oe::Time dt);
 		void playSoldier(oe::Time dt);
 
-		void findResource();
+		void goToResource();
 		void harass();
 
 	private:
@@ -40,6 +40,9 @@ class AI
 		bool mTurnOver;
 		Ant* mCurrentAnt;
 		U32 mCurrentAntIndex;
+
+		std::vector<oe::Vector2i> mResourcesPos;
+		oe::EntityList mEnemies;
 };
 
 #endif // AI_HPP

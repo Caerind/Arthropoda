@@ -34,8 +34,7 @@ void EntityHandle::operator=(const EntityHandle& handle)
 
 Entity* EntityHandle::get() const
 {
-	ASSERT(mWorld != nullptr);
-	Entity* entity = mWorld->getEntityFromHandleIndex(mHandleIndex);
+	Entity* entity = (mWorld != nullptr) ? mWorld->getEntityFromHandleIndex(mHandleIndex) : nullptr;
 	if (entity != nullptr && entity->getId() == mEntityId)
 	{
 		return entity;
@@ -49,8 +48,7 @@ bool EntityHandle::isValid() const
 	{
 		return false;
 	}
-	ASSERT(mWorld != nullptr);
-	Entity* entity = mWorld->getEntityFromHandleIndex(mHandleIndex);
+	Entity* entity = (mWorld != nullptr) ? mWorld->getEntityFromHandleIndex(mHandleIndex) : nullptr;
 	return entity != nullptr && entity->getId() == mEntityId;
 }
 
@@ -62,6 +60,11 @@ bool EntityHandle::operator==(const EntityHandle& handle) const
 bool EntityHandle::operator!=(const EntityHandle& handle) const
 {
 	return mEntityId != handle.mEntityId;
+}
+
+void EntityHandle::invalidate()
+{
+	mEntityId = 0;
 }
 
 UID EntityHandle::getEntityId() const

@@ -5,6 +5,7 @@
 MapEntity::MapEntity(oe::World& world)
 	: oe::Entity(world)
 	, mResourceComponent(*this)
+	, mLifeComponent(*this)
 	, mPlayer(0)
 	, mLife(0)
 {
@@ -40,6 +41,11 @@ U32 MapEntity::getPlayer() const
 void MapEntity::setLife(U32 life)
 {
 	mLife = life;
+	if (mLife > 10000)
+	{
+		mLife = 0;
+	}
+	mLifeComponent.setLife(getLife());
 }
 
 U32 MapEntity::getLife() const
@@ -50,6 +56,11 @@ U32 MapEntity::getLife() const
 void MapEntity::infligeDamage(U32 damage)
 {
 	mLife -= damage;
+	if (mLife > 10000)
+	{
+		mLife = 0;
+	}
+	mLifeComponent.setLife(getLife());
 }
 
 void MapEntity::setResources(U32 resources)

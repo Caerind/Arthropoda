@@ -5,6 +5,7 @@
 #include "../Sources/Core/World.hpp"
 
 #include "Ant.hpp"
+#include "AI.hpp"
 
 class GameState : public oe::State
 {
@@ -21,8 +22,9 @@ class GameState : public oe::State
 		void zoomView(const sf::Event& event);
 		void moveView(oe::Time dt);
 
-		void initResources();
-		void initCollisions();
+		void initMap();
+		oe::Vector2i getCoordsZone(U32 zone);
+
 		oe::Vector2i getMouseCoords();
 		void moveView(const sf::Event& event);
 		bool useButtons(const sf::Vector2f& mouse);
@@ -34,8 +36,7 @@ class GameState : public oe::State
 		oe::World mWorld;
 		oe::Clock mClock;
 
-		bool mMousePressedBool;
-		oe::Vector2 mMousePressed;
+		AI mAi;
 
 		U32 mTurnNumber;
 		U32 mCurrentPlayer;
@@ -46,6 +47,8 @@ class GameState : public oe::State
 		oe::Vector2i mPlayer1Anthill;
 		oe::Vector2i mPlayer2Anthill;
 
+		sf::Texture mGameMaskTexture;
+		sf::Sprite mGameMask;
 		sf::Texture mGameHudTexture;
 		sf::Sprite mButton1;
 		sf::Sprite mButton2;

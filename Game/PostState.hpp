@@ -1,24 +1,25 @@
-#ifndef INTROSTATE_HPP
-#define INTROSTATE_HPP
+#ifndef POSTSTATE_HPP
+#define POSTSTATE_HPP
 
 #include "../Sources/Core/StateManager.hpp"
 
 #include <SFML/Graphics/Texture.hpp>
+#include <SFML/Graphics/Text.hpp>
 #include <SFML/Graphics/Sprite.hpp>
 
-class IntroState : public oe::State
+class PostState : public oe::State
 {
 	public:
-		IntroState(oe::StateManager& manager);
+		PostState(oe::StateManager& manager);
 
 		bool handleEvent(const sf::Event& event);
 		bool update(oe::Time dt);
 		void render(sf::RenderTarget& target);
 
 	private:
-		oe::Time mElapsed;
-		sf::Texture mAtmogTexture;
-		sf::Sprite mAtmogSprite;
+		sf::Texture mTexture;
+		sf::Sprite mScreen;
+		sf::Text mText;
 };
 
-#endif // INTROSTATE_HPP
+#endif // POSTSTATE_HPP

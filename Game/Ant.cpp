@@ -2,6 +2,7 @@
 
 #include "GameSingleton.hpp"
 #include "GameConfig.hpp"
+#include "Anthill.hpp"
 
 const oe::Vector2i Ant::invalidDest(-1, -1);
 
@@ -9,20 +10,24 @@ Ant::Ant(oe::World& world)
 	: MapEntity(world)
 	, mSprite(*this)
 	, mSelectionSprite(*this)
-	, mDestination(-1, -1)
+	, mDestination(invalidDest)
 {
 	// Sprite
 	mSprite.setTexture(GameSingleton::antTexture);
 	mSprite.setTextureRect(sf::IntRect(0, 0, 60, 52));
-	//mSprite.setPosition(0.f, -5.f);
+	mSprite.move(0.0f, 10.0f);
 	mSelectionSprite.setTexture(GameSingleton::antTexture);
 	mSelectionSprite.setTextureRect(sf::IntRect(0, 0, 0, 0));
+	mSelectionSprite.move(0.0f, 10.0f);
 
 	mResourceComponent.move(40.f, 0.f);
+	mLifeComponent.move(5.f, 10.f);
 
+	setPositionZ(0.0f);
 	mSprite.setPositionZ(0.0f);
 	mSelectionSprite.setPositionZ(1.0f);
-	mResourceComponent.setPositionZ(2.0f);
+	mResourceComponent.setPositionZ(5.0f);
+	mLifeComponent.setPositionZ(10.0f);
 
 	// MapEntity
 	setPlayer(0);
@@ -41,7 +46,14 @@ void Ant::goTo(I32 x, I32 y)
 
 void Ant::goTo(const oe::Vector2i& coords)
 {
+	invalidateTarget();
 	mPath.clear();
+
+	if (coords.x >= 30 || coords.x < 0 || coords.y >= 30 || coords.y < 0)
+	{
+		return;
+	}
+
 	if (AStar::run(mPath, getCoords(), coords, GameSingleton::collisions))
 	{
 		mDestination = coords;
@@ -52,46 +64,108 @@ void Ant::goTo(const oe::Vector2i& coords)
 	}
 	else
 	{
-		mDestination.set(-1, -1); // Invalid destination
+		mDestination.set(invalidDest);
 		mPath.clear();
 	}
 }
 
 void Ant::goToAnthill()
 {
-	Anthill& anthill((getPlayer() == 1) ? GameSingleton::getAnthill() : GameSingleton::getAIAnthill());
-	std::vector<oe::Vector2i> n;
-	oe::MapUtility::getNeighboors(n, anthill.getCoords(), oe::MapUtility::Hexagonal);
-	U32 size = n.size();
-	for (U32 i = 0; i < size;)
+	invalidateTarget();
+	oe::Vector2i coords(getAnthill().getCoords());
+
+	mPath.clear();
+
+	GameSingleton::setCollision(coords, false);
+	bool a = AStar::run(mPath, getCoords(), coords, GameSingleton::collisions);
+	GameSingleton::setCollision(coords, true);
+
+	if (a)
 	{
-		if (GameSingleton::isCollision(n[i]))
+		if (mPath.back() == coords)
 		{
-			n.erase(n.begin() + i);
-			size--;
+			mPath.pop_back();
 		}
-		else
+
+		if (!mPath.empty())
 		{
-			i++;
+			mDestination = mPath.back();
+		}
+
+		if (mPath.size() > mPM)
+		{
+			mPath.resize(mPM);
 		}
 	}
-	if (n.size() > 0)
+	else
 	{
-		oe::Vector2i cCoords(getCoords());
-		std::sort(n.begin(), n.end(), [&cCoords](const oe::Vector2i& a, const oe::Vector2i& b)
-		{
-			return AStar::heuristic(cCoords, a) < AStar::heuristic(cCoords, b);
-		});
-		goTo(n[0]);
+		mDestination.set(invalidDest);
+		mPath.clear();
 	}
 }
 
 void Ant::goToDestination()
 {
+	invalidateTarget();
 	if (mDestination != invalidDest && mDestination != getCoords())
 	{
-		goTo(mDestination);
+		if (mDestination == getAnthill().getCoords())
+		{
+			goToAnthill();
+		}
+		else
+		{
+			goTo(mDestination);
+		}
 	}
+}
+
+void Ant::goToTarget(oe::EntityHandle target)
+{
+	mTargetHandle = target;
+	if (!mTargetHandle.isValid())
+	{
+		return;
+	}
+
+	mPath.clear();
+	mDestination.set(invalidDest);
+
+	// Adjacent
+	MapEntity* ent = mTargetHandle.getAs<MapEntity>();
+
+	if (canAttack())
+	{
+		attack();
+		return;
+	}
+
+	oe::Vector2i coords(ent->getCoords());
+
+	GameSingleton::setCollision(coords, false);
+	bool a = AStar::run(mPath, getCoords(), coords, GameSingleton::collisions);
+	GameSingleton::setCollision(coords, true);
+
+	if (a)
+	{
+		if (mPath.back() == coords)
+		{
+			mPath.pop_back();
+		}
+		if (mPath.size() > mPM)
+		{
+			mPath.resize(mPM);
+		}
+	}
+	else
+	{
+		mPath.clear();
+	}
+}
+
+void Ant::invalidateTarget()
+{
+	mTargetHandle.invalidate();
 }
 
 bool Ant::canPlay() const
@@ -101,12 +175,26 @@ bool Ant::canPlay() const
 
 bool Ant::isTurnOver() const
 {
-	return mPM == 0;
+	return mPM == 0 && !mMoving;
+}
+
+void Ant::endTurn()
+{
+	mPM = 0;
+	mMoving = false;
 }
 
 void Ant::reset()
 {
 	mPM = getDistance();
+	mMoving = false;
+	mCanAttack = true;
+	mTargetHandle.invalidate();
+}
+
+void Ant::resetDest()
+{
+	mDestination.set(invalidDest);
 }
 
 U32 Ant::getPM() const
@@ -124,14 +212,55 @@ bool Ant::isFullCap() const
 	return getCap() <= 0;
 }
 
+bool Ant::canAttack()
+{
+	MapEntity* ent = mTargetHandle.getAs<MapEntity>();
+	return (mPM > 0 && mCanAttack && ent != nullptr && isAdjacent(ent->getCoords()));
+}
+
+void Ant::attack()
+{
+	ASSERT(canAttack());
+
+	setCoords(mCoords);
+
+	MapEntity* ent = mTargetHandle.getAs<MapEntity>();
+
+	ent->infligeDamage(getDamage());
+	mPM--;
+	mCanAttack = false;
+
+	// Attack sound
+	if (getWorld().getRenderSystem().getView().getBounds().contains(toSF(getPosition().toVector2())))
+	{
+		getWorld().getApplication().getAudio().playSound(GameSingleton::attackSound);
+	}
+
+	// If ant : kill it
+	if (ent->getLife() == 0 && ent->getCoords() != getAnthillEnemy().getCoords())
+	{
+		ent->kill();
+		GameSingleton::setCollision(ent->getCoords(), false);
+		if (getPlayer() == 1)
+		{
+			GameSingleton::map->setTileOverlayId(ent->getCoords(), TILE_OVER1);
+			GameSingleton::map->validOverlay(); // Needed ?
+		}
+	}
+
+	if (getPlayer() == 2) // TODO : Temp
+	{
+		mPM = 0;
+		mMoving = false;
+	}
+}
+
 bool Ant::updateAnt(oe::Time dt, bool selected)
 {
 	selectedOverlay(selected); // Selection (+ zone of movement if can play && selected)
-	if (!mPath.empty()) // We need to move
+	if (!mPath.empty() || mMoving) // We need to move
 	{
-		mTime += dt; 
-		static const oe::Time timeNeeded(oe::seconds(0.1f));
-		if (mTime > timeNeeded)
+		if (!mMoving)
 		{
 			mTime = oe::Time::Zero;
 			oe::Vector2i coords(mPath.front());
@@ -139,34 +268,65 @@ bool Ant::updateAnt(oe::Time dt, bool selected)
 			{
 				GameSingleton::setCollision(getCoords(), false);
 				GameSingleton::setCollision(coords, true);
-				setCoords(coords);
-				mPath.pop_front();
-				//GameSingleton::map->invalidOverlay();
+				mCoords.set(coords);
 				mPM--;
+				mPath.pop_front();
+
+				// If ant is visible : play sound
+				if (getWorld().getRenderSystem().getView().getBounds().contains(toSF(getPosition().toVector2())))
+				{
+					getWorld().getApplication().getAudio().playSound(GameSingleton::movementSound);
+				}
+
+				mStart.set(getPosition());
+				mEnd.set(GameSingleton::map->coordsToWorld(coords));
+				mMoving = true;
 			}
 			else
 			{
 				mPath.clear();
+				mMoving = false;
 			}
 		}
-
-		if (mPM == 0)
+		else
 		{
-			tryCollectResources();
-			tryDeposit();
-			if (getCoords() == mDestination)
+			mTime += dt;
+			static const oe::Time time1(oe::seconds(0.10f));
+			static const oe::Time time2(oe::seconds(0.15f));
+			if (mTime < time1)
 			{
-				mDestination.set(-1, -1);
+				setPosition(oe::Vector2::lerp(mStart, mEnd, mTime.asSeconds() * 10.f));
 			}
-			return true;
-		}
+			else if (mTime > time2)
+			{
+				mMoving = false;
 
-		if (getCoords() == mDestination)
-		{
-			tryCollectResources();
-			tryDeposit();
-			mDestination.set(-1, -1);
-			return true;
+				setCoords(mCoords);
+
+				if (mPM == 0)
+				{
+					tryCollectResources();
+					tryDeposit();
+					if (getCoords() == mDestination)
+					{
+						mDestination.set(invalidDest);
+					}
+					return true;
+				}
+
+				if (canAttack())
+				{
+					attack();
+				}
+
+				if (getCoords() == mDestination)
+				{
+					tryCollectResources();
+					tryDeposit();
+					mDestination.set(invalidDest);
+					return true;
+				}
+			}
 		}
 	}
 	return false;
@@ -182,6 +342,9 @@ void Ant::unselect()
 {
 	mSelectionSprite.setTextureRect(sf::IntRect(0, 0, 0, 0));
 	GameSingleton::map->invalidOverlay();
+
+	mMoving = false;
+	setCoords(getCoords());
 }
 
 void Ant::setType(Type type)
@@ -192,13 +355,14 @@ void Ant::setType(Type type)
 	I32 x;
 	switch (type)
 	{
-		case Scout: x = 0; break;
+		case Scout: x = 3; break;
 		case Worker: x = 1; break;
 		case Soldier: x = 2; break;
 		default: x = 0; break;
 	}
 	I32 y = (getPlayer() == 1) ? 0 : 1;
 	mResourceComponent.setResourcesMax(getResourcesMax());
+	mLifeComponent.setLifeMax(getLife(mType));
 	mSprite.setTextureRect(sf::IntRect(60 * x, 52 * y, 60, 52));
 }
 
@@ -225,6 +389,20 @@ U32 Ant::getDamage() const
 const oe::Vector2i& Ant::getDestination() const
 {
 	return mDestination;
+}
+
+bool Ant::isAdjacent(const oe::Vector2i& coords) const
+{
+	std::vector<oe::Vector2i> n;
+	oe::MapUtility::getNeighboors(n, getCoords(), oe::MapUtility::Hexagonal);
+	for (const oe::Vector2i& c : n)
+	{
+		if (c == coords)
+		{
+			return true;
+		}
+	}
+	return false;
 }
 
 U32 Ant::getPrice(Type antType)
@@ -295,7 +473,7 @@ void Ant::selectedOverlay(bool displayMovements)
 		Distance::run(dist, getCoords(), mPM, GameSingleton::collisions);
 		for (const oe::Vector2i& coords : dist)
 		{
-			GameSingleton::map->setTileOverlayId(coords, (getPlayer() == 1) ? TILE_OVER1 : TILE_OVER2);
+			GameSingleton::map->setTileOverlayId(coords, TILE_OVER1);
 		}
 		GameSingleton::map->validOverlay();
 	}
@@ -328,7 +506,7 @@ void Ant::tryCollectResources()
 
 void Ant::tryDeposit()
 {
-	Anthill& anthill((getPlayer() == 1) ? GameSingleton::getAnthill() : GameSingleton::getAIAnthill());
+	Anthill& anthill(getAnthill());
 	std::vector<oe::Vector2i> n;
 	oe::MapUtility::getNeighboors(n, anthill.getCoords(), oe::MapUtility::Hexagonal);
 	for (const oe::Vector2i& c : n)
@@ -339,4 +517,14 @@ void Ant::tryDeposit()
 			setResources(0);
 		}
 	}
+}
+
+Anthill& Ant::getAnthill()
+{
+	return (getPlayer() == 1) ? GameSingleton::getAnthill() : GameSingleton::getAIAnthill();
+}
+
+Anthill& Ant::getAnthillEnemy()
+{
+	return (getPlayer() == 2) ? GameSingleton::getAnthill() : GameSingleton::getAIAnthill();
 }

@@ -21,24 +21,50 @@ void AI::startTurn()
 	mCurrentAntIndex = 0;
 	mTurnNumber++;
 	mTurnOver = false;
+	mEnemies = GameSingleton::ants;
+
+	if (mTurnNumber == 1)
+	{
+		tryBuyScout();
+		tryBuyWorker();
+		tryBuyWorker();
+		tryBuySoldier();
+	}
+
+	// Remove empty resources
+	Resource* r = nullptr;
+	U32 rSize = mResourcesPos.size();
+	for (U32 i = 0; i < rSize; )
+	{
+		r = GameSingleton::getResource(mResourcesPos[i]);
+		if (r == nullptr)
+		{
+			mResourcesPos.erase(mResourcesPos.begin() + i);
+			rSize--;
+		}
+		else
+		{
+			i++;
+		}
+	}
 }
 
 void AI::think(oe::Time dt)
 {
-	// If have money, try to buy
-	if (mAnthill->getResources() > GPRICE1) // TODO : Choose the cheapest
+	dt *= 2.f;
+
+	if (mAnthill->getResources() > GPRICE1) // Choose the cheapest
 	{
 		tryBuy();
 	}
 
-	// Take an ant and think what to do with it
 	if (mCurrentAnt == nullptr || mCurrentAnt->isTurnOver())
 	{
 		mCurrentAnt = GameSingleton::getAIAnt(mCurrentAntIndex);
 		mCurrentAntIndex++;
-		if (mCurrentAntIndex >= GameSingleton::aiAnts.size()) // TODO : >= or > ?
+		if (mCurrentAntIndex > GameSingleton::aiAnts.size())
 		{
-			endTurn();
+			mTurnOver = true;
 		}
 	}
 	else
@@ -53,19 +79,14 @@ void AI::think(oe::Time dt)
 	}
 }
 
-void AI::endTurn()
-{
-	mTurnOver = true;
-}
-
 bool AI::isTurnOver() const
 {
 	return mTurnOver;
 }
 
-bool AI::isDead() const
+void AI::addResource(const oe::Vector2i& coords)
 {
-	return mAnthill->getLife() <= 0;
+	mResourcesPos.push_back(coords);
 }
 
 void AI::tryBuy()
@@ -117,77 +138,136 @@ void AI::tryBuySoldier()
 
 void AI::playScout(oe::Time dt)
 {
-	// Scout farm resources if nb turn < x2 (medium)
 	if (mCurrentAnt->getDestination() == Ant::invalidDest)
 	{
-		if (mTurnNumber < AIX2)
+		if (mCurrentAnt->getResources() > 0)
 		{
-			if (mCurrentAnt->isFullCap())
-			{
-				mCurrentAnt->goToAnthill();
-			}
-			else
-			{
-				findResource();
-			}
+			mCurrentAnt->goToAnthill();
 		}
 		else
 		{
-			harass();
+			if (mTurnNumber < 15)
+			{
+				goToResource();
+			}
+			else
+			{
+				harass();
+			}
 		}
+	}
+	else
+	{
+		mCurrentAnt->goToDestination();
 	}
 	mCurrentAnt->updateAnt(dt, false);
 }
 
 void AI::playWorker(oe::Time dt)
 {
-	// Worker farm resources if nb turn < x3 (very high)
 	if (mCurrentAnt->getDestination() == Ant::invalidDest)
 	{
-		if (mCurrentAnt->isFullCap())
+		if (mCurrentAnt->getResources() > 0)
 		{
 			mCurrentAnt->goToAnthill();
 		}
-		else if (mTurnNumber < AIX3)
-		{
-			findResource();
-		}
 		else
 		{
-			harass();
+			goToResource();
 		}
+	}
+	else
+	{
+		mCurrentAnt->goToDestination();
 	}
 	mCurrentAnt->updateAnt(dt, false);
 }
 
 void AI::playSoldier(oe::Time dt)
 {
-	// Soldier farm resources if nb turn < x1 (low)
 	if (mCurrentAnt->getDestination() == Ant::invalidDest)
 	{
-		if (mTurnNumber < AIX1)
-		{
-			if (mCurrentAnt->isFullCap())
-			{
-				mCurrentAnt->goToAnthill();
-			}
-			else
-			{
-				findResource();
-			}
-		}
-		else
-		{
-			harass();
-		}
+		harass();
+	}
+	else
+	{
+		mCurrentAnt->goToDestination();
 	}
 	mCurrentAnt->updateAnt(dt, false);
 }
 
-void AI::findResource()
+void AI::goToResource()
 {
+	std::vector<oe::Vector2i> res; // Best res
+	oe::Vector2i coords = mCurrentAnt->getCoords();
+	I32 minDistance = 9999;
+	U32 rSize = mResourcesPos.size();
+	for (U32 i = 0; i < rSize; i++)
+	{
+		I32 heur = AStar::heuristic(coords, mResourcesPos[i]);
+		bool col = GameSingleton::isCollision(mResourcesPos[i]);
+		if (heur < minDistance && heur >= 0 && !col)
+		{
+			res.clear();
+			res.push_back(mResourcesPos[i]);
+			minDistance = heur;
+		}
+		else if (heur == minDistance && heur >= 0 && !col)
+		{
+			res.push_back(mResourcesPos[i]);
+		}
+	}
+	if (!res.empty())
+	{
+		U32 index = oe::Random::get(0u, res.size() - 1);
+		if (res[index] != mCurrentAnt->getCoords())
+		{
+			mCurrentAnt->goTo(res[index]);
+		}
+		else
+		{
+			mCurrentAnt->goToAnthill();
+		}
+	}
+	else
+	{
+		mCurrentAnt->goToAnthill();
+	}
 }
 
 void AI::harass()
 {
+	mEnemies.update();
+
+	std::vector<oe::EntityHandle> res; // Best res
+	oe::Vector2i coords = mCurrentAnt->getCoords();
+	I32 minDistance = 9999;
+	Ant* enemy = nullptr;
+	for (auto itr = mEnemies.begin(); itr != mEnemies.end(); ++itr)
+	{
+		enemy = itr->getAs<Ant>();
+		if (enemy != nullptr)
+		{
+			I32 heur = AStar::heuristic(coords, enemy->getCoords());
+			if (heur < minDistance && heur >= 0)
+			{
+				res.clear();
+				res.push_back(*itr);
+				minDistance = heur;
+			}
+			else if (heur == minDistance && heur >= 0)
+			{
+				res.push_back(*itr);
+			}
+		}
+	}
+	if (!res.empty())
+	{
+		U32 index = oe::Random::get(0u, res.size() - 1);
+		mCurrentAnt->goToTarget(res[index]);
+	}
+	else
+	{
+		mCurrentAnt->goToTarget(GameSingleton::anthill);
+	}
 }

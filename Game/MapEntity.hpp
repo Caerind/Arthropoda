@@ -4,6 +4,7 @@
 #include "../Sources/Core/World.hpp"
 #include "../Sources/Core/Entity.hpp"
 #include "ResourceComponent.hpp"
+#include "LifeComponent.hpp"
 
 class MapEntity : public oe::Entity
 {
@@ -28,9 +29,10 @@ class MapEntity : public oe::Entity
 
 	protected:
 		ResourceComponent mResourceComponent;
+		LifeComponent mLifeComponent;
+		oe::Vector2i mCoords;
 
 	private:
-		oe::Vector2i mCoords;
 		U32 mPlayer;
 		U32 mLife;
 		U32 mResources;

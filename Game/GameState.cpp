@@ -1,35 +1,38 @@
 #include "GameState.hpp"
 
 #include "GameSingleton.hpp" // Used to store the map
-#include "GameConfig.hpp" // Used to move the view
+#include "GameConfig.hpp"
+#include "PostState.hpp" // Used to switch to
 
 GameState::GameState(oe::StateManager& manager)
 	: oe::State(manager)
 	, mWorld(manager.getApplication())
 {
+	GameSingleton::clear();
+
 	mTurnNumber = 0;
 	mWorld.getRenderSystem().setBackgroundColor(oe::Color::DarkGray);
 
 	// Load resources
-	GameSingleton::antTexture = mWorld.getTextures().create("ants", "../Assets/pions.png");
-	GameSingleton::objectsTexture = mWorld.getTextures().create("objects", "../Assets/objects.png");
-	mGameHudTexture.loadFromFile("../Assets/gamehud.png");
+	mGameMaskTexture.loadFromFile("Assets/gamemask.png");
+	mGameHudTexture.loadFromFile("Assets/gamehud.png");
 
-	// Buttons
+	// HUD
+	mGameMask.setTexture(mGameMaskTexture);
 	mButton1.setTexture(mGameHudTexture);
-	mButton1.setTextureRect(sf::IntRect(0, 0, 115, 60));
+	mButton1.setTextureRect(sf::IntRect(0, 0, 75, 60));
 	mButton1.setPosition(0.f, WINSIZEY - 60.f);
 	mButton2.setTexture(mGameHudTexture);
-	mButton2.setTextureRect(sf::IntRect(115, 0, 115, 60));
-	mButton2.setPosition(115.f, WINSIZEY - 60.f);
+	mButton2.setTextureRect(sf::IntRect(75, 0, 75, 60));
+	mButton2.setPosition(75.f, WINSIZEY - 60.f);
 	mButton3.setTexture(mGameHudTexture);
-	mButton3.setTextureRect(sf::IntRect(115, 0, 115, 60));
-	mButton3.setPosition(230.f, WINSIZEY - 60.f);
+	mButton3.setTextureRect(sf::IntRect(150, 0, 75, 60));
+	mButton3.setPosition(150.f, WINSIZEY - 60.f);
 	mButtonNext.setTexture(mGameHudTexture);
-	mButtonNext.setTextureRect(sf::IntRect(345, 0, 60, 60));
+	mButtonNext.setTextureRect(sf::IntRect(285, 0, 60, 60));
 	mButtonNext.setPosition(WINSIZEX - 120.f, WINSIZEY - 60.f);
 	mButtonTurn.setTexture(mGameHudTexture);
-	mButtonTurn.setTextureRect(sf::IntRect(405, 0, 60, 60));
+	mButtonTurn.setTextureRect(sf::IntRect(225, 0, 60, 60));
 	mButtonTurn.setPosition(WINSIZEX - 60.f, WINSIZEY - 60.f);
 
 	// Init map first because needed by other entities
@@ -45,29 +48,28 @@ GameState::GameState(oe::StateManager& manager)
 	GameSingleton::setCollision(mPlayer1Anthill, true);
 
 	// Init player 2 : AI
-	mPlayer2Anthill.set(20, 20);
+	mPlayer2Anthill.set(23, 23);
 	GameSingleton::aiAnthill = mWorld.createEntity<Anthill>();
 	anthill = GameSingleton::aiAnthill.getAs<Anthill>();
 	anthill->setCoords(mPlayer2Anthill);
 	anthill->setPlayer(2);
 	GameSingleton::setCollision(mPlayer2Anthill, true);
 
-	// Init map
-	initResources();
-	initCollisions();
+	// Init map & AI
+	initMap();
+	mAi.init();
 
 	// Start the game
 	mCurrentPlayer = 2;
 	mSelectedAnt = nullptr;
-	mMousePressedBool = false;
 	passTurn(); // Pass to player 1 and do the announce it
-
-	mClock.restart();
 }
 
 bool GameState::handleEvent(const sf::Event& event)
 {
 	moveView(event);
+
+	zoomView(event);
 
 	if (mCurrentPlayer == 1)
 	{
@@ -85,9 +87,18 @@ bool GameState::handleEvent(const sf::Event& event)
 		if (event.type == sf::Event::MouseButtonPressed && event.mouseButton.button == sf::Mouse::Right && mSelectedAnt != nullptr && mSelectedAnt->canPlay() && mTurnReady)
 		{
 			oe::Vector2i mc(getMouseCoords());
+			oe::EntityHandle enemyAnt = GameSingleton::getAIAntHandle(mc);
 			if (mc == mPlayer1Anthill)
 			{
 				mSelectedAnt->goToAnthill();
+			}
+			else if (mc == mPlayer2Anthill)
+			{
+				mSelectedAnt->goToTarget(GameSingleton::aiAnthill);
+			}
+			else if (enemyAnt.isValid())
+			{
+				mSelectedAnt->goToTarget(enemyAnt);
 			}
 			else
 			{
@@ -106,7 +117,18 @@ bool GameState::update(oe::Time dt)
 
 	moveView(dt);
 
-	getWindow().setTitle("LD38 - FPS : " + oe::toString(getApplication().getFPSCount()));
+	if (GameSingleton::getAnthill().getLife() == 0)
+	{
+		GameSingleton::win = false;
+		popState();
+		pushState<PostState>();
+	}
+	if (GameSingleton::getAIAnthill().getLife() == 0)
+	{
+		GameSingleton::win = true;
+		popState();
+		pushState<PostState>();
+	}
 
 	if (!GameSingleton::map->isOverlayValid())
 	{
@@ -117,10 +139,10 @@ bool GameState::update(oe::Time dt)
 
 	if (mCurrentPlayer == 1)
 	{
-		GameSingleton::map->setCursorCoords(getMouseCoords());
-		mButton1.setTextureRect(sf::IntRect(0, 60 * ((anthill.canSpawn(Ant::Scout)) ? 0 : 1), 115, 60));
-		mButton2.setTextureRect(sf::IntRect(115, 60 * ((anthill.canSpawn(Ant::Worker)) ? 0 : 1), 115, 60));
-		mButton3.setTextureRect(sf::IntRect(230, 60 * ((anthill.canSpawn(Ant::Soldier)) ? 0 : 1), 115, 60));
+		GameSingleton::map->setCursorCoords(getMouseCoords(), mCurrentPlayer);
+		mButton1.setTextureRect(sf::IntRect(0, 60 * ((anthill.canSpawn(Ant::Scout)) ? 0 : 1), 75, 60));
+		mButton2.setTextureRect(sf::IntRect(75, 60 * ((anthill.canSpawn(Ant::Worker)) ? 0 : 1), 75, 60));
+		mButton3.setTextureRect(sf::IntRect(150, 60 * ((anthill.canSpawn(Ant::Soldier)) ? 0 : 1), 75, 60));
 
 		if (mSelectedAnt == nullptr && !mTurnReady)
 		{
@@ -158,10 +180,14 @@ bool GameState::update(oe::Time dt)
 	}
 	else if (mCurrentPlayer == 2)
 	{
-		mButton1.setTextureRect(sf::IntRect(0, 60, 115, 60));
-		mButton2.setTextureRect(sf::IntRect(115, 60, 115, 60));
-		mButton3.setTextureRect(sf::IntRect(230, 60, 115, 60));
-		// TODO : AI
+		mButton1.setTextureRect(sf::IntRect(0, 60, 75, 60));
+		mButton2.setTextureRect(sf::IntRect(75, 60, 75, 60));
+		mButton3.setTextureRect(sf::IntRect(150, 60, 75, 60));
+		mAi.think(dt);
+		if (mAi.isTurnOver())
+		{
+			passTurn();
+		}
 	}
 
 	return false;
@@ -170,6 +196,7 @@ bool GameState::update(oe::Time dt)
 void GameState::render(sf::RenderTarget& target)
 {
 	mWorld.render(target);
+	target.draw(mGameMask);
 	target.draw(mButton1);
 	target.draw(mButton2);
 	target.draw(mButton3);
@@ -195,11 +222,17 @@ void GameState::zoomView(const sf::Event& event)
 		oe::View& view = getView();
 		if (event.mouseWheelScroll.delta < 1)
 		{
-			view.zoom(1.2f);
+			if (view.getZoom() < 3.0f)
+			{
+				view.zoom(2.0f);
+			}
 		}
 		else
 		{
-			view.zoom(0.8f);
+			if (view.getZoom() > 1.5f)
+			{
+				view.zoom(0.5f);
+			}
 		}
 	}
 }
@@ -224,6 +257,25 @@ void GameState::moveView(oe::Time dt)
 		mvt.x += 1.0f;
 	}
 	getView().move(mvt * dt.asSeconds() * 500.f);
+
+	oe::Vector2 v = getView().getCenter();
+	if (v.x < 0.f)
+	{
+		v.x = 0.f;
+	}
+	if (v.y < 0.f)
+	{
+		v.y = 0.f;
+	}
+	if (v.x > 1800.f)
+	{
+		v.x = 1800.f;
+	}
+	if (v.y > 1600.f)
+	{
+		v.y = 1600.f;
+	}
+	getView().setCenter(v);
 }
 
 oe::Vector2i GameState::getMouseCoords()
@@ -233,48 +285,122 @@ oe::Vector2i GameState::getMouseCoords()
 
 void GameState::moveView(const sf::Event& event)
 {
+	static bool mousePressedBool = false;
+	static oe::Vector2 mousePressed;
 	if (event.type == sf::Event::MouseButtonPressed && event.mouseButton.button == sf::Mouse::Left)
 	{
-		mMousePressedBool = true;
-		mMousePressed.set(getWindow().getCursorPositionView(getView()));
+		sf::Vector2f m(toSF(getWindow().getCursorPosition()));
+		if (!mButton1.getGlobalBounds().contains(m)
+			&& !mButton2.getGlobalBounds().contains(m)
+			&& !mButton3.getGlobalBounds().contains(m)
+			&& !mButtonNext.getGlobalBounds().contains(m)
+			&& !mButtonTurn.getGlobalBounds().contains(m))
+		{
+			mousePressedBool = true;
+			mousePressed.set(getWindow().getCursorPositionView(getView()));
+		}
 	}
-	if (event.type == sf::Event::MouseMoved && mMousePressedBool)
+	if (event.type == sf::Event::MouseMoved && mousePressedBool)
 	{
-		oe::Vector2 mp(getWindow().getCursorPositionView(getView()));
-		getView().move(mMousePressed - mp);
+		getView().move(mousePressed - getWindow().getCursorPositionView(getView()));
 	}
 	if (event.type == sf::Event::MouseButtonReleased && event.mouseButton.button == sf::Mouse::Left)
 	{
-		mMousePressedBool = false;
+		mousePressedBool = false;
 	}
 }
 
-void GameState::initResources()
+void GameState::initMap()
 {
-	U32 rCount = oe::Random::get(10u, 15u);
-	for (U32 i = 0; i < rCount; i++)
+	U32 zone0r = 0;
+	for (U32 zone = 0; zone < 4; zone++)
 	{
-		bool placed = false;
-		while (!placed)
+		U32 nWater = (zone == 0 || zone == 3) ? oe::Random::get(0u, 1u) : oe::Random::get(1u, 2u);
+		for (U32 i = 0; i < nWater; i++)
 		{
-			oe::Vector2i coords(oe::Random::get(4, MAPSIZEX - 4), oe::Random::get(4, MAPSIZEY - 4));
-			if (!GameSingleton::isCollision(coords))
+			oe::Vector2i c(getCoordsZone(zone));
+			std::vector<oe::Vector2i> n;
+			oe::MapUtility::getNeighboors(n, c, oe::MapUtility::Hexagonal);
+			n.push_back(c);
+			for (const oe::Vector2i& w : n)
 			{
-				oe::EntityHandle r = mWorld.createEntity<Resource>();
-				Resource* res = r.getAs<Resource>();
-				if (res != nullptr)
+				GameSingleton::map->setTileId(w, TILE_WATER);
+				GameSingleton::setCollision(w, true);
+			}
+		}
+
+		nWater = (zone == 0 || zone == 3) ? oe::Random::get(3u, 5u) : oe::Random::get(4u, 7u);
+		for (U32 i = 0; i < nWater; i++)
+		{
+			oe::Vector2i c(getCoordsZone(zone));
+			GameSingleton::map->setTileId(c, TILE_WATER);
+			GameSingleton::setCollision(c, true);
+		}
+
+		U32 nRocks = (zone == 0 || zone == 3) ? oe::Random::get(3u, 5u) : oe::Random::get(4u, 7u);
+		for (U32 i = 0; i < nRocks; i++)
+		{
+			oe::Vector2i c(getCoordsZone(zone));
+			GameSingleton::map->setTileId(c, TILE_ROCK);
+			GameSingleton::setCollision(c, true);
+		}
+
+		U32 nResources = oe::Random::get(3u, 5u);
+		if (zone == 0)
+		{
+			zone0r = nResources;
+		}
+		if (zone == 3)
+		{
+			nResources = zone0r;
+		}
+		for (U32 i = 0; i < nResources; i++)
+		{
+			oe::Vector2i c(getCoordsZone(zone));
+			if (!GameSingleton::isCollision(c))
+			{
+				bool testPassed = true;
+				if (zone == 0 || zone == 3)
 				{
-					res->setCoords(coords);
-					GameSingleton::resources.insert(r);
-					placed = true;
+					// Try adjacent anthill
+					std::vector<oe::Vector2i> neighbors;
+					oe::MapUtility::getNeighboors(neighbors, c, oe::MapUtility::Hexagonal);
+					for (const oe::Vector2i& n : neighbors)
+					{
+						if (n == GameSingleton::getAnthill().getCoords() || n == GameSingleton::getAIAnthill().getCoords())
+						{
+							testPassed = false;
+						}
+					}
+				}
+				if (testPassed)
+				{
+					oe::EntityHandle r = mWorld.createEntity<Resource>();
+					Resource* res = r.getAs<Resource>();
+					if (res != nullptr)
+					{
+						res->setCoords(c);
+						GameSingleton::resources.insert(r);
+						mAi.addResource(c);
+					}
 				}
 			}
 		}
 	}
 }
 
-void GameState::initCollisions()
+oe::Vector2i GameState::getCoordsZone(U32 zone)
 {
+	oe::Vector2i c;
+	switch (zone)
+	{
+		case 0: c.set(oe::Random::get(0, MAPSIZEX / 2), oe::Random::get(0, MAPSIZEY / 2)); break;
+		case 1: c.set(oe::Random::get(MAPSIZEX / 2, MAPSIZEX - 1), oe::Random::get(0, MAPSIZEY / 2)); break;
+		case 2: c.set(oe::Random::get(0, MAPSIZEX / 2), oe::Random::get(MAPSIZEY / 2, MAPSIZEY - 1)); break;
+		case 3: c.set(oe::Random::get(MAPSIZEX / 2, MAPSIZEX - 1), oe::Random::get(MAPSIZEY / 2, MAPSIZEY - 1)); break;
+		default: break;
+	}
+	return c;
 }
 
 bool GameState::useButtons(const sf::Vector2f& mouse)
@@ -282,26 +408,31 @@ bool GameState::useButtons(const sf::Vector2f& mouse)
 	Anthill& anthill = GameSingleton::getAnthill();
 	if (mButton1.getGlobalBounds().contains(mouse) && anthill.canSpawn(Ant::Scout))
 	{
+		getApplication().getAudio().playSound(GameSingleton::actionSound);
 		anthill.spawn(Ant::Scout);
 		return true;
 	}
 	if (mButton2.getGlobalBounds().contains(mouse) && anthill.canSpawn(Ant::Worker))
 	{
+		getApplication().getAudio().playSound(GameSingleton::actionSound);
 		anthill.spawn(Ant::Worker);
 		return true;
 	}
 	if (mButton3.getGlobalBounds().contains(mouse) && anthill.canSpawn(Ant::Soldier))
 	{
+		getApplication().getAudio().playSound(GameSingleton::actionSound);
 		anthill.spawn(Ant::Soldier);
 		return true;
 	}
 	if (mButtonNext.getGlobalBounds().contains(mouse))
 	{
+		getApplication().getAudio().playSound(GameSingleton::actionSound);
 		switchToNextAnt();
 		return true;
 	}
 	if (mButtonTurn.getGlobalBounds().contains(mouse))
 	{
+		getApplication().getAudio().playSound(GameSingleton::actionSound);
 		passTurn();
 		return true;
 	}
@@ -350,32 +481,32 @@ void GameState::passTurn()
 			}
 		}
 		mCurrentPlayer = 2;
-		mCurrentPlayer = 1; // TODO : Change
-		mTurnNumber++; // TODO : Change
-		// TODO : Change
-		GameSingleton::map->setCursorRect(sf::IntRect(420, 0, 60, 80)); // CURSOR 1
+		mAi.startTurn();
 	}
 	else if (mCurrentPlayer == 2 || mCurrentPlayer == 0)
 	{
-		GameSingleton::map->setCursorRect(sf::IntRect(420, 0, 60, 80)); // CURSOR 1
 		if (mCurrentPlayer == 2)
 		{
-			for (const oe::EntityHandle& e : GameSingleton::ants)
+			for (const oe::EntityHandle& e : GameSingleton::aiAnts)
 			{
 				ASSERT(e.isValid());
 				Ant* ant = e.getAs<Ant>();
 				if (ant != nullptr)
 				{
 					ant->reset();
+					bool aa = true; // IF AI
+					if (aa)
+					{
+						ant->resetDest();
+						ant->invalidateTarget();
+					}
 				}
 			}
 		}
 		mCurrentPlayer = 1;
-		mButtonTurn.setTextureRect(sf::IntRect(345, 0, 60, 60));
 		mTurnNumber++;
 	}
-	printf("Player %d turn %d started\n", mCurrentPlayer, mTurnNumber);
-	mButtonTurn.setTextureRect(sf::IntRect(345, (mCurrentPlayer == 1) ? 0 : 60, 60, 60));
+	mButtonTurn.setTextureRect(sf::IntRect(225, (mCurrentPlayer == 1) ? 0 : 60, 60, 60));
 	mTurnReady = false;
 	mSelectedAnt = nullptr;
 	mAntUpdateIterator = 0;

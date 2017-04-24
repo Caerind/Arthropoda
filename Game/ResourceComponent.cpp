@@ -12,7 +12,7 @@ ResourceComponent::ResourceComponent(oe::Entity& entity)
 	mText.setOutlineColor(sf::Color::Black);
 	mText.setOutlineThickness(1.f);
 	mText.setFont(getWorld().getFonts().get(GameSingleton::sansationFont));
-	mText.setCharacterSize(10);
+	mText.setCharacterSize(12);
 }
 
 void ResourceComponent::setResourcesMax(U32 max)
@@ -36,7 +36,14 @@ void ResourceComponent::updateText()
 {
 	if (mResourcesMax != 0 && mResources != 0)
 	{
-		mText.setString(oe::toString(mResources) + "/" + oe::toString(mResourcesMax));
+		if (mResourcesMax == 999)
+		{
+			mText.setString(oe::toString(mResources));
+		}
+		else
+		{
+			mText.setString(oe::toString(mResources) + "/" + oe::toString(mResourcesMax));
+		}
 	}
 	else
 	{

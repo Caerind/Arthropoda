@@ -14,7 +14,7 @@ class GameMap : public oe::Map
 
 		void setCursorVisible(bool visible);
 		void setCursorRect(const sf::IntRect& rect);
-		void setCursorCoords(const oe::Vector2i& coords);
+		void setCursorCoords(const oe::Vector2i& coords, U32 currentPlayer);
 
 		void validOverlay();
 		void invalidOverlay();

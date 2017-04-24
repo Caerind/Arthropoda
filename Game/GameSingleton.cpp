@@ -6,6 +6,9 @@ oe::Tileset GameSingleton::tileset;
 GameMap* GameSingleton::map;
 CollisionMatrix GameSingleton::collisions;
 oe::ResourceId GameSingleton::sansationFont;
+oe::ResourceId GameSingleton::movementSound;
+oe::ResourceId GameSingleton::actionSound;
+oe::ResourceId GameSingleton::attackSound;
 oe::ResourceId GameSingleton::antTexture;
 oe::ResourceId GameSingleton::objectsTexture;
 oe::EntityList GameSingleton::resources;
@@ -13,6 +16,7 @@ oe::EntityHandle GameSingleton::anthill;
 oe::EntityList GameSingleton::ants;
 oe::EntityHandle GameSingleton::aiAnthill;
 oe::EntityList GameSingleton::aiAnts;
+bool GameSingleton::win;
 
 void GameSingleton::loadTileset()
 {
@@ -120,6 +124,19 @@ Ant* GameSingleton::getAnt(const oe::Vector2i& coords)
 	return nullptr;
 }
 
+oe::EntityHandle GameSingleton::getAntHandle(const oe::Vector2i& coords)
+{
+	for (const oe::EntityHandle& e : ants)
+	{
+		Ant* ant = e.getAs<Ant>();
+		if (ant != nullptr && ant->getCoords() == coords)
+		{
+			return e;
+		}
+	}
+	return oe::EntityHandle();
+}
+
 Anthill& GameSingleton::getAIAnthill()
 {
 	ASSERT(aiAnthill.isValid());
@@ -160,9 +177,33 @@ Ant* GameSingleton::getAIAnt(const oe::Vector2i& coords)
 	return nullptr;
 }
 
+oe::EntityHandle GameSingleton::getAIAntHandle(const oe::Vector2i & coords)
+{
+	for (const oe::EntityHandle& e : aiAnts)
+	{
+		Ant* ant = e.getAs<Ant>();
+		if (ant != nullptr && ant->getCoords() == coords)
+		{
+			return e;
+		}
+	}
+	return oe::EntityHandle();
+}
+
 void GameSingleton::update()
 {
 	resources.update();
 	ants.update();
 	aiAnts.update();
+}
+
+void GameSingleton::clear()
+{
+	map = nullptr;
+	collisions.clear();
+	resources.clear();
+	anthill.invalidate();
+	aiAnthill.invalidate();
+	ants.clear();
+	aiAnts.clear();
 }
