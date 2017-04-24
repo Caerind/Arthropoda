@@ -61,6 +61,17 @@ void AI::think(oe::Time dt)
 	if (mCurrentAnt == nullptr || mCurrentAnt->isTurnOver())
 	{
 		mCurrentAnt = GameSingleton::getAIAnt(mCurrentAntIndex);
+
+		if (mCurrentAnt != nullptr)
+		{
+			GameSingleton::setCollision(mAnthill->getCoords(), false);
+			if (!AStar::canGo(mCurrentAnt->getCoords(), mAnthill->getCoords(), GameSingleton::collisions))
+			{
+				mCurrentAnt = nullptr;
+			}
+			GameSingleton::setCollision(mAnthill->getCoords(), true);
+		}
+
 		mCurrentAntIndex++;
 		if (mCurrentAntIndex > GameSingleton::aiAnts.size())
 		{

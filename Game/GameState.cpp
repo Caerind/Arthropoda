@@ -259,21 +259,21 @@ void GameState::moveView(oe::Time dt)
 	getView().move(mvt * dt.asSeconds() * 500.f);
 
 	oe::Vector2 v = getView().getCenter();
-	if (v.x < 0.f)
+	if (v.x < 350.f)
 	{
-		v.x = 0.f;
+		v.x = 350.f;
 	}
-	if (v.y < 0.f)
+	if (v.y < 225.f)
 	{
-		v.y = 0.f;
+		v.y = 225.f;
 	}
-	if (v.x > 1800.f)
+	if (v.x > 1500.f)
 	{
-		v.x = 1800.f;
+		v.x = 1500.f;
 	}
-	if (v.y > 1600.f)
+	if (v.y > 1400.f)
 	{
-		v.y = 1600.f;
+		v.y = 1400.f;
 	}
 	getView().setCenter(v);
 }

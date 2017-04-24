@@ -23,7 +23,7 @@ int main()
 
 	// Load Window
 	oe::Window& window = application.getWindow();
-	window.create(sf::VideoMode(WINSIZEX, WINSIZEY), WINTITLE);
+	window.create(sf::VideoMode(WINSIZEX, WINSIZEY), WINTITLE, sf::Style::Close);
 	window.setMainView(sf::View(sf::FloatRect(0.0f, 0.0f, WINSIZEX, WINSIZEY)));
 	window.applyMainView();
 

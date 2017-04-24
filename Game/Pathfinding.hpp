@@ -186,11 +186,69 @@ class AStar
 			return false;
 		}
 
-		static I32 heuristic(const oe::Vector2i& p1, const oe::Vector2i& p2) // Distance as the crow flies between too points
+		static bool canGo(const oe::Vector2i& start, const oe::Vector2i& end, CollisionMatrix& map)
 		{
-			I32 a(p1.x - p2.x);
-			I32 b(p1.y - p2.y);
-			return (I32)std::sqrt(a * a + b * b);
+			oe::Vector2i size(map.getSize());
+			NodeMatrix closeList(size);
+			std::list<Node*> openList;
+			for (I32 i = 0; i < size.x; i++)
+			{
+				for (I32 j = 0; j < size.y; j++)
+				{
+					closeList.set(i, j, new Node((map.get(i, j)) ? 1 : 0, 0));
+				}
+			}
+			Node* n = closeList.get(start);
+			n->position.set(start);
+			n->gScore = 0;
+			n->fScore = n->gScore + heuristic(start, end);
+			openList.push_front(n);
+			while (!openList.empty())
+			{
+				openList.sort(compareNode);
+				Node* current = openList.front(); // Take the most interesting node
+
+				if (current->position == end) // Check if we are the end
+				{
+					return true;
+				}
+
+				// If the end wasn't reached
+
+				std::list<Node*> neighbors;
+				getNeighbors(neighbors, current, closeList);
+
+				openList.pop_front();
+				current->visited = true; // add to closed list
+
+				while (!neighbors.empty())
+				{
+					Node* neighbor = neighbors.front();
+					neighbors.pop_front();
+					if (!neighbor->visited) // If not in the closed list
+					{
+						I32 gscore = current->gScore + current->score;
+						if (!isInOpenList(neighbor, openList) || gscore < neighbor->gScore)
+						{
+							neighbor->parent = current;
+							neighbor->gScore = gscore;
+							neighbor->fScore = neighbor->gScore + heuristic(neighbor->position, end);
+							if (!isInOpenList(neighbor, openList))
+							{
+								openList.push_front(neighbor);
+							}
+						}
+					}
+				}
+			}
+			return false;
+		}
+
+		static I32 heuristic(const oe::Vector2i& p1, const oe::Vector2i& p2)
+		{
+			I32 dx = p2.x - p1.x;
+			I32 dy = p2.y - p1.y;
+			return (I32)std::sqrt(dx * dx + dy * dy);
 		}
 
 	private:
